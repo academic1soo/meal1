@@ -1,0 +1,491 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>식사 스톱워치</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body {
+            background-color: #f8f9fa;
+            color: #1f2937;
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col justify-between selection:bg-indigo-500 selection:text-white">
+
+    <!-- Header -->
+    <header class="bg-white/80 backdrop-blur-md border-b border-slate-200/60 py-3 px-4 flex justify-between items-center sticky top-0 z-20">
+        <h1 class="text-base font-bold flex items-center gap-2 text-indigo-600">
+            <i class="fa-solid fa-utensils"></i> 식사 스톱워치
+        </h1>
+        <div class="flex items-center gap-2">
+            <button onclick="switchTab('timer')" id="tab-btn-timer" class="text-xs font-semibold px-3 py-1.5 rounded-lg bg-indigo-50 text-indigo-600 transition-all">타이머</button>
+            <button onclick="switchTab('analytics')" id="tab-btn-analytics" class="text-xs font-semibold px-3 py-1.5 rounded-lg text-slate-500 transition-all">통계</button>
+            <div id="auth-status" class="text-[10px] text-slate-400 bg-slate-100 px-2 py-1 rounded-full hidden sm:block">
+                <i class="fa-solid fa-circle-notch animate-spin"></i> 연결 중
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Container -->
+    <main class="max-w-md w-full mx-auto p-3 flex-grow flex flex-col gap-4">
+
+        <!-- TAB 1: TIMER -->
+        <div id="view-timer" class="flex flex-col gap-4 flex-grow">
+            <!-- Meal Type Selector -->
+            <div class="grid grid-cols-3 gap-1.5 bg-slate-200/80 p-1 rounded-xl">
+                <button onclick="setMealType('아침')" id="btn-아침" class="meal-type-btn py-2 rounded-lg font-semibold text-xs transition-all bg-white shadow-sm text-indigo-600">아침</button>
+                <button onclick="setMealType('점심')" id="btn-점심" class="meal-type-btn py-2 rounded-lg font-semibold text-xs transition-all text-slate-600">점심</button>
+                <button onclick="setMealType('저녁')" id="btn-저녁" class="meal-type-btn py-2 rounded-lg font-semibold text-xs transition-all text-slate-600">저녁</button>
+            </div>
+
+            <!-- Stopwatch Display Card -->
+            <div class="bg-white rounded-2xl shadow-sm border border-slate-100 p-5 flex flex-col items-center justify-center text-center relative overflow-hidden">
+                <div class="absolute top-3 left-4 text-[11px] font-semibold text-slate-400 uppercase tracking-wider" id="current-meal-display">아침 식사 중</div>
+                
+                <div class="text-4xl sm:text-5xl font-mono font-bold tracking-wider my-6 text-slate-800" id="timer-display">
+                    00:00:00
+                </div>
+
+                <!-- Controls -->
+                <div class="grid grid-cols-4 gap-1.5 w-full">
+                    <button onclick="recordLap()" id="lap-btn" disabled class="bg-slate-100 hover:bg-slate-200 text-slate-600 font-semibold py-2.5 px-1 rounded-xl transition-all disabled:opacity-40 text-xs flex flex-col items-center justify-center gap-0.5">
+                        <i class="fa-solid fa-flag text-xs"></i> 랩
+                    </button>
+                    <button onclick="toggleTimer()" id="start-stop-btn" class="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-2.5 px-1 rounded-xl shadow-sm transition-all text-xs flex flex-col items-center justify-center gap-0.5">
+                        <i class="fa-solid fa-play text-xs"></i> 시작
+                    </button>
+                    <button onclick="stopAndSaveMeal()" id="finish-btn" disabled class="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold py-2.5 px-1 rounded-xl shadow-sm transition-all disabled:opacity-40 text-xs flex flex-col items-center justify-center gap-0.5">
+                        <i class="fa-solid fa-stop text-xs"></i> 종료
+                    </button>
+                    <button onclick="resetTimer()" id="reset-btn" class="bg-rose-50 hover:bg-rose-100 text-rose-600 font-semibold py-2.5 px-1 rounded-xl transition-all text-xs flex flex-col items-center justify-center gap-0.5">
+                        <i class="fa-solid fa-rotate-right text-xs"></i> 초기화
+                    </button>
+                </div>
+            </div>
+
+            <!-- Laps Section -->
+            <div class="bg-white rounded-2xl shadow-sm border border-slate-100 p-4 flex flex-col flex-grow">
+                <div class="flex justify-between items-center mb-2">
+                    <h2 class="font-bold text-slate-700 text-xs flex items-center gap-1">
+                        <i class="fa-solid fa-clock-rotate-left text-indigo-500"></i> 랩 기록 목록
+                    </h2>
+                    <span class="text-[11px] text-slate-400 font-mono" id="lap-count">0개 기록됨</span>
+                </div>
+                
+                <div class="overflow-y-auto max-h-36 divide-y divide-slate-100 pr-1" id="lap-list">
+                    <div class="text-center py-6 text-slate-300 text-xs">
+                        아직 측정된 랩이 없습니다.
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- TAB 2: ANALYTICS -->
+        <div id="view-analytics" class="hidden flex flex-col gap-3 flex-grow">
+            <!-- Period Toggle -->
+            <div class="grid grid-cols-2 gap-1.5 bg-slate-200/80 p-1 rounded-xl">
+                <button onclick="switchPeriod('daily')" id="period-btn-daily" class="py-2 rounded-lg font-semibold text-xs transition-all bg-white shadow-sm text-indigo-600">일간 통계</button>
+                <button onclick="switchPeriod('weekly')" id="period-btn-weekly" class="py-2 rounded-lg font-semibold text-xs transition-all text-slate-600">주간 통계</button>
+            </div>
+
+            <!-- Analytics Container -->
+            <div id="analytics-content" class="flex flex-col gap-2.5">
+                <!-- Data Rendered Here -->
+            </div>
+        </div>
+
+    </main>
+
+    <!-- Footer Action -->
+    <footer class="bg-white/80 backdrop-blur-md border-t border-slate-200/60 p-3 max-w-md w-full mx-auto flex gap-2">
+        <button onclick="openSheetModal()" class="w-full bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold py-3 px-4 rounded-xl transition-all flex items-center justify-center gap-2 text-xs">
+            <i class="fa-solid fa-file-excel text-emerald-600"></i> 스프레드시트(GAS) 자동연동 설정
+        </button>
+    </footer>
+
+    <!-- Custom Modal -->
+    <div id="custom-modal" class="fixed inset-0 bg-black/40 backdrop-blur-sm hidden flex items-center justify-center p-4 z-50">
+        <div class="bg-white rounded-2xl p-5 max-w-xs w-full text-center shadow-lg">
+            <div id="modal-icon" class="text-3xl mb-2 text-indigo-600"><i class="fa-solid fa-circle-check"></i></div>
+            <h3 id="modal-title" class="font-bold text-base mb-1">알림</h3>
+            <p id="modal-desc" class="text-slate-500 text-xs mb-4">내용이 표시됩니다.</p>
+            <button onclick="closeModal()" class="w-full bg-indigo-600 text-white py-2 rounded-xl font-semibold text-xs">확인</button>
+        </div>
+    </div>
+
+    <!-- Sheet Webhook Modal -->
+    <div id="sheet-modal" class="fixed inset-0 bg-black/40 backdrop-blur-sm hidden flex items-center justify-center p-4 z-50">
+        <div class="bg-white rounded-2xl p-5 max-w-sm w-full text-left shadow-lg">
+            <h3 class="font-bold text-sm mb-1.5 flex items-center gap-1.5 text-slate-700">
+                <i class="fa-solid fa-file-excel text-emerald-600"></i> 스프레드시트 연동
+            </h3>
+            <p class="text-[11px] text-slate-500 mb-3">Google Apps Script 웹훅 URL을 입력하면 종료 시 스프레드시트에 자동 저장됩니다.</p>
+            
+            <label class="block text-[11px] font-semibold text-slate-600 mb-1">GAS 웹훅 URL</label>
+            <input type="text" id="webhook-input" placeholder="https://script.google.com/macros/s/.../exec" class="w-full text-xs p-2.5 border border-slate-200 rounded-xl mb-3 focus:outline-none focus:border-indigo-500 font-mono">
+            
+            <div class="flex gap-2">
+                <button onclick="closeSheetModal()" class="flex-1 bg-slate-100 text-slate-600 py-2 rounded-xl font-semibold text-xs">취소</button>
+                <button onclick="saveWebhookUrl()" class="flex-1 bg-emerald-600 text-white py-2 rounded-xl font-semibold text-xs">저장</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Firebase SDKs -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, collection, addDoc, getDocs } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        const firebaseConfig = JSON.parse(typeof __firebase_config !== 'undefined' ? __firebase_config : '{}');
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-meal-app';
+
+        let currentUser = null;
+        let startTime = 0;
+        let elapsedTime = 0;
+        let timerInterval = null;
+        let isRunning = false;
+        let currentMeal = '아침';
+        let laps = [];
+        let allRecords = [];
+        let currentPeriod = 'daily';
+
+        window.switchTab = function(tab) {
+            const timerView = document.getElementById('view-timer');
+            const analyticsView = document.getElementById('view-analytics');
+            const btnTimer = document.getElementById('tab-btn-timer');
+            const btnAnalytics = document.getElementById('tab-btn-analytics');
+
+            if (tab === 'timer') {
+                timerView.classList.remove('hidden');
+                analyticsView.classList.add('hidden');
+                btnTimer.className = "text-xs font-semibold px-3 py-1.5 rounded-lg bg-indigo-50 text-indigo-600 transition-all";
+                btnAnalytics.className = "text-xs font-semibold px-3 py-1.5 rounded-lg text-slate-500 transition-all";
+            } else {
+                timerView.classList.add('hidden');
+                analyticsView.classList.remove('hidden');
+                btnAnalytics.className = "text-xs font-semibold px-3 py-1.5 rounded-lg bg-indigo-50 text-indigo-600 transition-all";
+                btnTimer.className = "text-xs font-semibold px-3 py-1.5 rounded-lg text-slate-500 transition-all";
+                loadAndRenderAnalytics();
+            }
+        }
+
+        window.switchPeriod = function(period) {
+            currentPeriod = period;
+            const btnDaily = document.getElementById('period-btn-daily');
+            const btnWeekly = document.getElementById('period-btn-weekly');
+
+            if (period === 'daily') {
+                btnDaily.className = "py-2 rounded-lg font-semibold text-xs transition-all bg-white shadow-sm text-indigo-600";
+                btnWeekly.className = "py-2 rounded-lg font-semibold text-xs transition-all text-slate-600";
+            } else {
+                btnWeekly.className = "py-2 rounded-lg font-semibold text-xs transition-all bg-white shadow-sm text-indigo-600";
+                btnDaily.className = "py-2 rounded-lg font-semibold text-xs transition-all text-slate-600";
+            }
+            renderAnalytics();
+        }
+
+        window.setMealType = function(type) {
+            currentMeal = type;
+            document.querySelectorAll('.meal-type-btn').forEach(btn => {
+                btn.className = "meal-type-btn py-2 rounded-lg font-semibold text-xs transition-all text-slate-600";
+            });
+            document.getElementById(`btn-${type}`).className = "meal-type-btn py-2 rounded-lg font-semibold text-xs transition-all bg-white shadow-sm text-indigo-600";
+            document.getElementById('current-meal-display').innerText = `${type} 식사 중`;
+        }
+
+        window.toggleTimer = function() {
+            const btn = document.getElementById('start-stop-btn');
+            const lapBtn = document.getElementById('lap-btn');
+            const finishBtn = document.getElementById('finish-btn');
+            
+            if (!isRunning) {
+                isRunning = true;
+                startTime = Date.now() - elapsedTime;
+                timerInterval = setInterval(updateTimer, 10);
+                
+                btn.innerHTML = `<i class="fa-solid fa-pause text-xs"></i> 정지`;
+                btn.className = "bg-amber-500 hover:bg-amber-600 text-white font-semibold py-2.5 px-1 rounded-xl shadow-sm transition-all text-xs flex flex-col items-center justify-center gap-0.5";
+                lapBtn.disabled = false;
+                finishBtn.disabled = false;
+            } else {
+                isRunning = false;
+                clearInterval(timerInterval);
+                
+                btn.innerHTML = `<i class="fa-solid fa-play text-xs"></i> 재개`;
+                btn.className = "bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-2.5 px-1 rounded-xl shadow-sm transition-all text-xs flex flex-col items-center justify-center gap-0.5";
+            }
+        }
+
+        function updateTimer() {
+            elapsedTime = Date.now() - startTime;
+            const totalSeconds = Math.floor(elapsedTime / 1000);
+            const hours = String(Math.floor(totalSeconds / 3600)).padStart(2, '0');
+            const minutes = String(Math.floor((totalSeconds % 3600) / 60)).padStart(2, '0');
+            const seconds = String(totalSeconds % 60).padStart(2, '0');
+            document.getElementById('timer-display').innerText = `${hours}:${minutes}:${seconds}`;
+        }
+
+        window.recordLap = function() {
+            if (!isRunning && elapsedTime === 0) return;
+            const currentText = document.getElementById('timer-display').innerText;
+            laps.unshift({
+                index: laps.length + 1,
+                time: currentText,
+                rawTime: elapsedTime
+            });
+            renderLaps();
+        }
+
+        function renderLaps() {
+            const listEl = document.getElementById('lap-list');
+            document.getElementById('lap-count').innerText = `${laps.length}개 기록됨`;
+            
+            if (laps.length === 0) {
+                listEl.innerHTML = `<div class="text-center py-6 text-slate-300 text-xs">아직 측정된 랩이 없습니다.</div>`;
+                return;
+            }
+
+            listEl.innerHTML = laps.map(lap => `
+                <div class="flex justify-between items-center py-1.5 px-1 text-xs border-b border-slate-50 last:border-0">
+                    <span class="font-medium text-slate-500">구간 ${lap.index}</span>
+                    <span class="font-mono font-bold text-slate-700">${lap.time}</span>
+                </div>
+            `).join('');
+        }
+
+        window.resetTimer = function() {
+            isRunning = false;
+            clearInterval(timerInterval);
+            elapsedTime = 0;
+            laps = [];
+            document.getElementById('timer-display').innerText = "00:00:00";
+            
+            const btn = document.getElementById('start-stop-btn');
+            btn.innerHTML = `<i class="fa-solid fa-play text-xs"></i> 시작`;
+            btn.className = "bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-2.5 px-1 rounded-xl shadow-sm transition-all text-xs flex flex-col items-center justify-center gap-0.5";
+            
+            document.getElementById('lap-btn').disabled = true;
+            document.getElementById('finish-btn').disabled = true;
+            renderLaps();
+        }
+
+        // 종료 및 자동 서버/시트 저장 버튼
+        window.stopAndSaveMeal = async function() {
+            if (elapsedTime === 0) return;
+            
+            // 타이머 정지
+            isRunning = false;
+            clearInterval(timerInterval);
+
+            if (!currentUser) {
+                showModal("오류", "인증 정보가 없습니다.");
+                return;
+            }
+
+            const finishBtn = document.getElementById('finish-btn');
+            finishBtn.disabled = true;
+            finishBtn.innerHTML = `<i class="fa-solid fa-circle-notch animate-spin text-xs"></i> 저장`;
+
+            try {
+                const now = new Date();
+                const recordData = {
+                    mealType: currentMeal,
+                    totalTime: document.getElementById('timer-display').innerText,
+                    totalRawTime: elapsedTime,
+                    lapsCount: laps.length,
+                    dateString: now.toISOString().split('T')[0],
+                    createdAt: now.toISOString()
+                };
+
+                // Firebase 저장
+                await addDoc(collection(db, 'artifacts', appId, 'users', currentUser.uid, 'meal_records'), recordData);
+
+                // 스프레드시트 웹훅 전송
+                const webhookUrl = localStorage.getItem('meal_sheet_webhook');
+                if (webhookUrl) {
+                    try {
+                        await fetch(webhookUrl, {
+                            method: 'POST',
+                            mode: 'no-cors',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify(recordData)
+                        });
+                    } catch (err) {
+                        console.error("Webhook error:", err);
+                    }
+                }
+
+                showModal("측정 완료", `식사 시간이 성공적으로 종료 및 저장되었습니다! (${recordData.totalTime})`);
+                resetTimer();
+            } catch (error) {
+                console.error(error);
+                showModal("오류", "저장 중 문제가 발생했습니다.");
+            } finally {
+                finishBtn.innerHTML = `<i class="fa-solid fa-stop text-xs"></i> 종료`;
+            }
+        }
+
+        async function loadAndRenderAnalytics() {
+            if (!currentUser) return;
+            try {
+                const querySnapshot = await getDocs(collection(db, 'artifacts', appId, 'users', currentUser.uid, 'meal_records'));
+                allRecords = [];
+                querySnapshot.forEach((doc) => {
+                    allRecords.push(doc.data());
+                });
+                renderAnalytics();
+            } catch (e) {
+                console.error("Analytics load error", e);
+            }
+        }
+
+        function renderAnalytics() {
+            const container = document.getElementById('analytics-content');
+            
+            if (allRecords.length === 0) {
+                container.innerHTML = `
+                    <div class="bg-white rounded-2xl p-6 text-center text-slate-300 text-xs shadow-sm border border-slate-100">
+                        저장된 식사 통계 데이터가 없습니다.
+                    </div>
+                `;
+                return;
+            }
+
+            if (currentPeriod === 'daily') {
+                const dailyGroups = {};
+                allRecords.forEach(r => {
+                    const dateKey = r.dateString || r.createdAt.split('T')[0];
+                    if (!dailyGroups[dateKey]) dailyGroups[dateKey] = [];
+                    dailyGroups[dateKey].push(r);
+                });
+
+                const sortedDates = Object.keys(dailyGroups).sort().reverse();
+
+                container.innerHTML = sortedDates.map(date => {
+                    const records = dailyGroups[date];
+                    const totalMs = records.reduce((acc, cur) => acc + (cur.totalRawTime || 0), 0);
+                    const avgMs = Math.floor(totalMs / records.length);
+                    const avgSec = Math.floor(avgMs / 1000);
+                    const m = Math.floor(avgSec / 60);
+                    const s = avgSec % 60;
+
+                    return `
+                        <div class="bg-white rounded-2xl p-3.5 shadow-sm border border-slate-100 flex flex-col gap-2.5">
+                            <div class="flex justify-between items-center border-b border-slate-50 pb-2">
+                                <span class="font-bold text-slate-700 text-xs"><i class="fa-solid fa-calendar-day text-indigo-500 mr-1"></i> ${date}</span>
+                                <span class="text-[10px] font-mono text-slate-400">총 ${records.length}회 (평균 ${m}분 ${s}초)</span>
+                            </div>
+                            <div class="grid grid-cols-3 gap-1.5">
+                                ${['아침', '점심', '저녁'].map(meal => {
+                                    const match = records.find(r => r.mealType === meal);
+                                    return `
+                                        <div class="bg-slate-50 p-2 rounded-xl text-center">
+                                            <div class="text-[10px] font-semibold text-slate-400">${meal}</div>
+                                            <div class="font-mono text-xs font-bold text-slate-700 mt-0.5">${match ? match.totalTime : '-'}</div>
+                                        </div>
+                                    `;
+                                }).join('')}
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+
+            } else {
+                const weeklyGroups = {};
+                allRecords.forEach(r => {
+                    const d = new Date(r.createdAt);
+                    const weekKey = `${d.getFullYear()}-W${Math.ceil(d.getDate() / 7)}`;
+                    if (!weeklyGroups[weekKey]) weeklyGroups[weekKey] = [];
+                    weeklyGroups[weekKey].push(r);
+                });
+
+                const sortedWeeks = Object.keys(weeklyGroups).sort().reverse();
+
+                container.innerHTML = sortedWeeks.map(week => {
+                    const records = weeklyGroups[week];
+                    const totalMs = records.reduce((acc, cur) => acc + (cur.totalRawTime || 0), 0);
+                    const avgMs = Math.floor(totalMs / records.length);
+                    const avgSec = Math.floor(avgMs / 1000);
+                    const m = Math.floor(avgSec / 60);
+                    const s = avgSec % 60;
+
+                    const typeCount = { '아침': 0, '점심': 0, '저녁': 0 };
+                    records.forEach(r => { if(typeCount[r.mealType] !== undefined) typeCount[r.mealType]++; });
+
+                    return `
+                        <div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-100 flex flex-col gap-2.5">
+                            <div class="flex justify-between items-center border-b border-slate-50 pb-2">
+                                <span class="font-bold text-slate-700 text-xs"><i class="fa-solid fa-calendar-week text-indigo-500 mr-1"></i> ${week}</span>
+                                <span class="text-[10px] font-mono text-indigo-600 font-bold">${records.length}회 기록</span>
+                            </div>
+                            <div class="text-[11px] text-slate-500 flex justify-between bg-slate-50 p-2.5 rounded-xl">
+                                <span>주간 평균 식사 시간</span>
+                                <span class="font-mono font-bold text-slate-700">${m}분 ${s}초</span>
+                            </div>
+                            <div class="grid grid-cols-3 gap-1.5 text-center text-[11px] text-slate-500">
+                                <div class="bg-slate-50 p-1.5 rounded-lg">아침 <b>${typeCount['아침']}</b></div>
+                                <div class="bg-slate-50 p-1.5 rounded-lg">점심 <b>${typeCount['점심']}</b></div>
+                                <div class="bg-slate-50 p-1.5 rounded-lg">저녁 <b>${typeCount['저녁']}</b></div>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+            }
+        }
+
+        function showModal(title, desc) {
+            document.getElementById('modal-title').innerText = title;
+            document.getElementById('modal-desc').innerText = desc;
+            document.getElementById('custom-modal').classList.remove('hidden');
+        }
+
+        window.closeModal = function() {
+            document.getElementById('custom-modal').classList.add('hidden');
+        }
+
+        window.openSheetModal = function() {
+            document.getElementById('webhook-input').value = localStorage.getItem('meal_sheet_webhook') || '';
+            document.getElementById('sheet-modal').classList.remove('hidden');
+        }
+
+        window.closeSheetModal = function() {
+            document.getElementById('sheet-modal').classList.add('hidden');
+        }
+
+        window.saveWebhookUrl = function() {
+            const url = document.getElementById('webhook-input').value.trim();
+            localStorage.setItem('meal_sheet_webhook', url);
+            closeSheetModal();
+            showModal("설정 완료", "스프레드시트 웹훅 URL이 저장되었습니다.");
+        }
+
+        // 인증 초기화
+        async function initAuth() {
+            try {
+                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                    await signInWithCustomToken(auth, __initial_auth_token);
+                } else {
+                    await signInAnonymously(auth);
+                }
+            } catch (e) {
+                console.error("Auth error", e);
+            }
+        }
+
+        initAuth();
+        onAuthStateChanged(auth, (user) => {
+            if (user) {
+                currentUser = user;
+                document.getElementById('auth-status').innerHTML = `<i class="fa-solid fa-circle text-emerald-500 text-[8px] mr-1"></i> 서버 연결됨`;
+            }
+        });
+    </script>
+</body>
+</html>
